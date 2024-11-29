@@ -1,0 +1,137 @@
+\documentclass[12pt]{article}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{caption}
+
+\title{Practical 1:TCP File Transfer: A Simple Client-Server Implementation}
+\author{Tran Manh Long-22BI13267}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This report show the implementation of File transfer over TCP/IP in CLI that employ the usage of socket library
+
+\section{Protocol Design}
+The protocol for this file transfer can be seen below: 
+
+\begin{itemize}
+    \item The server listens for a connection from the client on a specified port (port 5000 for example)
+    \item The client connects to the server using the server's IP address and port number.
+    \item Once the connection is established, the server sends the requested file in chunks of 1024 bytes to the client.
+    \item The client receives the data and writes it to a file on its local system usaully on the same path as the program unless specified
+    \item The server closes the connection after the file has been fully sent.
+    \item If any error occurs during file transfer, the server sends an error message.
+\end{itemize}
+
+The protocol is based on the \texttt{TCP/IP} communication model, which ensures reliable, ordered delivery of data.
+
+\section{System Organization}
+The system is organized into two main components:
+\begin{enumerate}
+    \item \textbf{Server}: The server manage the connection, locating the file to send, and send it in chunks to the client.
+    \item \textbf{Client}: The client connects to the server, receives the file, and saves it to the local machine.
+\end{enumerate}
+
+The server listens on a predefined IP address and port, while the client initiates a connection. Once the connection is established, the server sends the file, and the client writes it to disk.
+
+\section{File Transfer Implementation}
+The file transfer is implemented using the Python \texttt{socket} library and execute by using python command on two seperated terminal. Below is a code snippet of the server-side implementation.
+
+\begin{lstlisting}[language=Python, caption=Server-side Implementation]
+import socket
+import os
+
+def ServerProgram():
+    # Server host and port
+    host = '127.0.0.1'  # Localhost (use the server IP if running remotely)
+    port = 5000
+
+    SeverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    SeverSocket.bind((host, port))
+    
+    SeverSocket.listen(1)#changee the number of connections if needed (i set 1 as default)
+    print(f"Server listening on {host}:{port}...")
+    conn, address = SeverSocket.accept()
+    print(f"Connection from {address} has been established.")
+    
+    filename = r'E:\distrbuted system\task1\host\transfer_file.txt' 
+    if os.path.exists(filename):
+        try:
+            with open(filename, 'rb') as file:
+                print(f"Sending file: {filename}")
+                while True:
+                    data = file.read(1024)
+                    if not data:
+                        break  
+                    conn.send(data)  
+            print(f"File {filename} sent successfully!")
+        except Exception as e: #error handling
+            print(f"Error sending file: {e}")
+            conn.send(b"Error sending file!")
+    else:
+        print(f"File {filename} not found!")
+        conn.send(b"File not found!") 
+
+    conn.close()
+    SeverSocket.close()  
+
+if __name__ == '__main__':
+    ServerProgram()
+\end{lstlisting}
+
+For the client-side implementation, below is the code snippet:
+
+\begin{lstlisting}[language=Python, caption=Client-side Implementation]
+import socket
+
+def ClientProgram():
+    host = '127.0.0.1' #i set it to transfer in my machine but it can be adjusted to connect any remote host
+    port = 5000  # configure the port to the same as host.py
+    ClientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    ClientSocket.connect((host, port))
+    
+    filename = 'recievedfile.txt'  #it should save the samepath with the file
+    with open(filename, 'wb') as f:
+        print(f"Receiving file from the server...")
+        while True:
+            data = ClientSocket.recv(1024)
+            if not data:
+                print("No more data received, closing connection.")
+                break 
+            f.write(data)  
+
+    print(f"I got the file. it will be saved as {filename}")
+    ClientSocket.close()
+
+if __name__ == '__main__':
+    ClientProgram()
+
+\end{lstlisting}
+
+In the server code, the server listens for a client connection and sends a file in chunks. If the file is not found or an error occurs, the server sends an appropriate error message.
+
+\section{Role of Each Component}
+
+\begin{itemize}
+    \item \textbf{Server}:
+    \begin{itemize}
+        \item Listens for incoming client connections.
+        \item Reads the file to be sent.
+        \item Sends the file in chunks over the connection.
+        \item Handles errors such as file not found.
+    \end{itemize}
+    
+    \item \textbf{Client}:
+    \begin{itemize}
+        \item Connects to the server.
+        \item Receives the file in chunks from the server.
+        \item Saves the file locally on the client machine.
+    \end{itemize}
+\end{itemize}
+
+The server is responsible for managing the file transfer process, while the client initiates the connection and stores the received data.
+
+\end{document}
