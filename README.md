@@ -8,7 +8,7 @@ Students are expected to:
 
 Student Info
 =========================
-* Student name: Tran Manh Long
+* Student Name: Tran Manh Long
 * Student ID: 22BI13267
 * Student Group ID: Not-for-now
 
