@@ -1,0 +1,99 @@
+\documentclass[12pt]{article}
+
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+
+\geometry{a4paper, margin=1in}
+
+\definecolor{codebg}{rgb}{0.95,0.95,0.95}
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{green!70!black},
+    stringstyle=\color{red},
+    showstringspaces=false,
+    captionpos=b,
+}
+
+\title{File Transfer System Using RPC}
+\author{Tran Manh Long 22BI13267}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+File transfer is an importtant part of distributed systems, allowing data to be shared between remote machine. This document describes an usage of a file transfer system using remote procedure call (RPC), replacing the traditional socket-based approach. RPC simplifies communication by enabling function calls across a network.
+
+\section{System Overview}
+The system consists of a client and server:
+\begin{itemize}
+    \item The \textbf{Server} reads a specified file and makes it available for transfer using RPC.
+    \item The \textbf{Client} requests the file using a remote function call and saves the received file locally.
+\end{itemize}
+The system is implemented using Python's \texttt{xmlrpc.server} and \texttt{xmlrpc.client} modules.
+
+\section{Server Implementation}
+The server exposes a method, \texttt{send\_file}, to send the contents of a file to the client. The implementation is shown below:
+
+\begin{lstlisting}[language=Python, caption=Server Implementation]
+from xmlrpc.server import SimpleXMLRPCServer
+import os
+
+def send_file():
+    filename = r'E:\distrbuted system\task2\host\transfer_file.txt'
+    if os.path.exists(filename):
+        try:
+            with open(filename, 'rb') as file:
+                data = file.read()
+            print(f"File {filename} read successfully!")
+            return data
+        except Exception as e:
+            print(f"Error reading file: {e}")
+            return f"Error reading file: {e}"
+    else:
+        print(f"File {filename} not found!")
+        return "File not found!"
+
+if __name__ == '__main__':
+    server = SimpleXMLRPCServer(('127.0.0.1', 5000), allow_none=True)
+    print("RPC Server is listening on 127.0.0.1:5000...")
+    server.register_function(send_file, 'send_file')
+    server.serve_forever()
+
+\end{lstlisting}
+
+\section{Client Implementation}
+The client connects to the server and invokes the \texttt{send\_file} method to retrieve the file. The received data is saved locally. The implementation is as follows:
+
+\begin{lstlisting}[language=Python, caption=Client Implementation]
+from xmlrpc.client import ServerProxy
+
+def client_program():
+    server = ServerProxy('http://127.0.0.1:5000/', allow_none=True)
+    try:
+        print("Requesting file from the server...")
+        data = server.send_file()
+        if isinstance(data, bytes):  # Check if the client got the file or not
+            filename = 'received_file.txt'
+            with open(filename, 'wb') as f:
+                f.write(data)
+            print(f"I got the file. It is saved as {filename}.")
+        else:  # If not recieved, return an error messag
+            print(f"Error from server: {data}")
+    except Exception as e:
+        print(f"Error during file transfer: {e}")
+
+if __name__ == '__main__':
+    client_program()
+
+\end{lstlisting}
+
+\section{Conclusion}
+This document describe a simple file transfer system using RPC, showcasing how RPC transfer files between machine while retaining robust functionality. The implementation make it an efficient and scalable approach for distributing files between machine
+
+\end{document}
