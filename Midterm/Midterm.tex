@@ -1,0 +1,185 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+
+% Settings for code listing
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{green!60!black},
+    commentstyle=\color{gray},
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    breaklines=true,
+    tabsize=4,
+    captionpos=b
+}
+
+\title{Hybrid Centralized and Peer-to-Peer Chat System using Sockets}
+\author{
+    Nguyen Manh Khoi-BI13219 \\
+    Nguyen Viet Minh Khoi-BI13221 \\
+    Le Quang Huy-BI13190 \\
+    Tran Manh Long-BI13267 \\
+    Tran Hung Thinh-BI12428 \\
+    Tran Hong Nhat-BA12143
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+Communication systems are essential in nowaday world. The goal of this project is to build a chat system which can combine the benefits of centralized server and the flexibility of peer-to-peer (P2P) interactions. Centralized models provide easy management and messages broadcasting, while P2P models can make direct communication and reduced server dependency.
+
+\section{Methodology}
+The hybrid system using the following methodologies:
+\begin{itemize}
+    \item \textbf{Centralized Communication}: Users connect to a central server for authentication and broadcasting messages to other connected clients.
+    \item \textbf{Peer-to-Peer Communication}: Users can make a direct connections with peers for private messaging, without the central server.
+    \item \textbf{Multithreading}: Both the server and clients use multithreading to handle multiple simultaneous connections efficiently.
+\end{itemize}
+
+The system architecture consists of two main components:
+\begin{enumerate}
+    \item \textbf{Central Server}: Manages client connections, broadcasts messages, and provides a list of active users for P2P connections.
+    \item \textbf{Clients}: Communicate with the central server and establish P2P connections for private chats.
+\end{enumerate}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{architecture.png}
+    \caption{System Architecture Diagram}
+    \label{fig:architecture}
+\end{figure}
+
+\section{Implementation}
+The project is implemented in Python, using the socket and threading libraries for network communication. The central server and client functionalities are seperated in respective classes.
+
+\subsection{Central Server}
+The central server handles client connections, manages a list of active clients, and broadcasts messages. The following code snippet illustrates the server's core functionality:
+\begin{lstlisting}[language=Python, caption=Central Server]
+class CentralServer:
+    def __init__(self, host='127.0.0.1', port=12345):
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  
+        self.server_socket.bind((host, port))
+        self.server_socket.listen(5)  # Maximum 5 connections
+        self.clients = {}  # Dictionary to store client connections
+
+    def handle_client(self, client_socket, client_address):
+        try:
+            username = client_socket.recv(1024).decode()
+            self.clients[username] = client_socket
+            print(f"{username} connected from {client_address}")
+
+            while True:
+                message = client_socket.recv(1024).decode()
+                if message == 'PEER':
+                    client_socket.send(str(list(self.clients.keys())).encode())
+                else:
+                    self.broadcast(message, username)
+        except:
+            print(f"{username}disconnected.")
+            del self.clients[username]
+        finally:
+            client_socket.close()
+
+    def broadcast(self, message, username):
+        for user, conn in self.clients.items():
+            if user != username:
+                try:
+                    conn.send(f"{username}:{message}".encode())
+                except:
+                    continue
+
+    def start(self):
+        print("Central server started...")
+        while True:
+            client_socket, client_address = self.server_socket.accept()
+            threading.Thread(target=self.handle_client, args=(client_socket, client_address)).start()
+\end{lstlisting}
+
+\subsection{Peer-to-Peer Client}
+Clients communicate with the central server and manage direct connections with peers. Key functionalities include sending messages, receiving messages, and initiating P2P communication.
+\begin{lstlisting}[language=Python, caption=Peer-to-Peer Client]
+class PeerClient:
+    def __init__(self, username, central_host='127.0.0.1', central_port=12345):
+        self.username = username
+        self.central_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.central_socket.connect((central_host, central_port))
+        self.central_socket.send(username.encode())
+        self.p2p_port = None  # Placeholder for P2P port
+
+    def receive_messages(self):
+        while True:
+            try:
+                message = self.central_socket.recv(1024).decode()
+                print(message)
+            except:
+                print("Disconnected from server.")
+                break
+
+    def send_message(self, message):
+        self.central_socket.send(message.encode())
+
+    def peer_to_peer(self, peer_host, peer_port, message=None):
+        try:
+            peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            peer_socket.connect((peer_host, peer_port))
+            if message:
+                peer_socket.send(message.encode())
+            threading.Thread(target=self.handle_peer, args=(peer_socket,)).start()
+        except Exception as e:
+            print(f"Error connecting to peer: {e}")
+        # Establish P2P connection and send messages
+
+    def start_peer_listener(self, host='127.0.0.1', port=None):
+        if port is None:
+            port = int(input("Enter port for P2P listener (default is 54321): ") or 54321)
+        self.p2p_port = port
+        listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener_socket.bind((host, port))
+        listener_socket.listen(1)
+        print(f"Listening for P2P connections on {host}:{port}...")
+        while True:
+            peer_socket, peer_address = listener_socket.accept()
+            print(f"Connected to peer at {peer_address}")
+            threading.Thread(target=self.handle_peer, args=(peer_socket,)).start()
+        # Listen for incoming P2P connections
+\end{lstlisting}
+After enter username, cient will be asked for a port for P2P connection(54321 by default). The other client can P2P communicate by this port and IP.
+
+\section{Results}
+The hybrid chat system was deployed successfully:
+\begin{itemize}
+    \item Multiple clients successfully connected to the central server and sent messages.
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.8\textwidth]{client_connection.png}
+        \caption{Clients are connected.}
+    \end{figure}
+    \item Peer-to-peer communication was established, allowing private message between users.
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.8\textwidth]{p2p_communication.png}
+        \caption{Private peer-to-peer communication demonstration.}
+    \end{figure}
+    \item The system demonstrated scalability by handling concurrent client connections efficiently.
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.8\textwidth]{scalability_test.png}
+        \caption{Scalability testing with multiple client connections.}
+    \end{figure}
+\end{itemize}
+
+\section{Conclusion}
+This project successfully implemented a hybrid centralized and peer-to-peer chat system using socket.The combine of both models offers flexibility, robustness, and scalability. Future work could adding encryption for secure communication and enhancements for large-scale deployments.
+
+
+\end{document}
